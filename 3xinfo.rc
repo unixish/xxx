@@ -1,0 +1,42 @@
+argv0 = `{basename $0}
+field = ''
+
+fn usage {
+	echo usage: $argv0 [-iv] package >[1=2]
+	exit 64
+}
+
+fn die {
+	code = $1
+	shift
+
+	echo $argv0: $"* >[1=2]
+	exit $code
+}
+
+while (~ $1 -*) {
+	switch ($1) {
+	case -i
+		field=inputs
+	case -v
+		field=version
+	case *
+		usage
+	}
+
+	shift
+}
+
+~ $#* 1 || usage
+
+switch ($field) {
+case ''
+	usage
+case *
+	test -d $repo || die 1 'repo does not exist'
+	test -f $repo/$1/index || die 2 'package does not exist'
+
+	cd $repo
+	path = . . $1/index
+	echo $$field
+}

@@ -1,0 +1,67 @@
+argv0 = `{basename $0}
+hostenv = ''
+swd = `{pwd}
+
+fn usage {
+	echo usage: $argv0 [-H] package >[1=2]
+	exit 64
+}
+
+fn die {
+	code = $1
+	shift
+
+	echo $argv0: $"* >[1=2]
+	exit $code
+}
+
+fn fetch {
+	switch ($2) {
+	case http:* https:*
+		curl '-#LO' $2
+	case git:*
+		git clone --depth 1 $2
+	case *
+		cp -R $repo/$1/$2 .
+	}
+}
+
+while (~ $1 -*) {
+	switch ($1) {
+	case -H
+		hostenv=1
+	case *
+		usage
+	}
+
+	shift
+}
+
+~ $#* 1 || usage
+
+test -d $repo || die 1 'repo does not exist'
+test -f $repo/$1/index || die 2 'package does not exist'
+
+cd $repo
+path = . . $1/index
+
+cd `{mktemp -dt xxx.XXXXXXXXXX}
+mkdir scratch output
+
+@{
+	cd scratch
+
+	for (input in $inputs)
+		fetch $1 $input
+
+	if (test -x $repo/$1/unpack) @{$repo/$1/unpack}
+	if (test -x $repo/$1/patch) @{$repo/$1/patch}
+	@{$repo/$1/build}
+}
+
+@{
+	cd output
+
+	find . -exec touch -d 1970-01-01T00:00:00Z '{}' +
+	tar -cv . > $swd/$1-$version.tar
+}
